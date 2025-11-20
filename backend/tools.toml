@@ -1,0 +1,118 @@
+# === Tools ===
+
+[tool.ruff]
+# See https://beta.ruff.rs/docs/configuration/#using-pyprojecttoml
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+
+ignore = [
+  "B007", # Loop control variable {name} not used within loop body
+  "B018", # Found useless expression. Either assign it to a variable or remove it.
+  "B905", # zip() without an explicit strict= parameter
+  "C901", # {name} is too complex ({complexity} > {max_complexity})
+  "E402", # Module level import not at top of file
+  "E501", # Line too long
+  "E712", # Comparison to True should be 'if cond is True:' or 'if cond:'
+  "E731", # Do not assign a lambda expression, use a def
+  "E741", # Ambiguous variable name: {name}
+  "F401", # Imported but unused
+  "W291", # Trailing whitespace
+  "W292", # No newline at end of file
+  "W293", # Blank line contains whitespace
+]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+
+[tool.mypy]
+ignore_missing_imports = true
+disable_error_code = []
+
+[tool.pylsp]
+# https://github.com/python-lsp/python-lsp-server/blob/develop/CONFIGURATION.md
+configurationSources = ["flake8"]
+
+[tool.pylsp.plugins.jedi]
+
+[tool.pylsp.plugins.jedi_completion]
+enabled = true
+
+[tool.pylsp.plugins.jedi_definition]
+enabled = true
+follow_imports = false
+follow_builtin_imports = false
+follow_builtin_definitions = false
+
+[tool.pylsp.plugins.jedi_hover]
+enabled = true
+
+[tool.pylsp.plugins.jedi_references]
+enabled = true
+
+[tool.pylsp.plugins.jedi_signature_help]
+enabled = true
+
+[tool.pylsp.plugins.jedi_symbols]
+enabled = true
+
+[tool.pylsp.plugins.preload]
+enabled = true
+
+[tool.pylsp.plugins.ruff]
+enabled = true
+
+[tool.pylsp.plugins.autopep8]
+enabled = false
+
+[tool.pylsp.plugins.flake8]
+enabled = false
+
+[tool.pylsp.plugins.mccabe]
+enabled = false
+
+[tool.pylsp.plugins.pycodestyle]
+enabled = false
+
+[tool.pylsp.plugins.pydocstyle]
+enabled = false
+
+[tool.pylsp.plugins.pyflakes]
+enabled = false
+
+[tool.pylsp.plugins.pylint]
+enabled = false
+
+[tool.pylsp.plugins.rope_autoimport]
+enabled = false
+
+[tool.pylsp.plugins.rope_completion]
+enabled = false
+
+[tool.pylsp.plugins.yapf]
+enabled = false
+
+[tool.pylsp.plugins.rope]
+enabled = false
+
+[tool.pylsp.rope]
+
+[tool.pylsp-rope]
+enabled = false
+
+[tool.pylsp.plugins.black]
+enabled = false
+
+[tool.pylsp.plugins.pyls_isort]
+enabled = false
+
+[tool.pylsp-mypy]
+enabled = false
+live_mode = false
+dmypy = true
+strict = false
+report_progress = false

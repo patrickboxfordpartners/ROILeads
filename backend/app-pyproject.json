@@ -1,0 +1,10 @@
+{
+  "version": null,
+  "dependencyGroups": {
+    "app": [
+      "openai",
+      "beautifulsoup4",
+      "requests"
+    ]
+  }
+}

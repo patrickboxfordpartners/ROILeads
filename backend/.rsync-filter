@@ -1,0 +1,12 @@
+# Rsync filter for copying backend code into image in build-prodx.sh
+- .venv/
+- .env
+- __pycache__/
+- *.pyc
++ pyproject.toml
++ uv.lock
++ routers.json
++ app/
++ app/**/
++ *.py
+- *
