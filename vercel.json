@@ -1,0 +1,17 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/backend/app/main_prod.py"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/frontend/dist/index.html"
+    }
+  ],
+  "functions": {
+    "backend/app/main_prod.py": {
+      "maxDuration": 10
+    }
+  }
+}
