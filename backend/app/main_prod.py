@@ -1,4 +1,3 @@
-# backend/app/main_prod.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,10 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.apis.leads import router as leads_router
 from app.apis.roi import router as roi_router
 
-app = FastAPI(title="ROI Calculator API")
+# Initialize FastAPI with root_path="/api"
+# This tells FastAPI that it is sitting behind a proxy (Vercel)
+# that is stripping the "/api" prefix, or that the prefix exists
+# so docs and redirects generate correctly.
+app = FastAPI(
+    title="ROI Calculator API",
+    root_path="/api"
+)
 
 # Allow the Frontend to talk to this Backend
-# In production, change ["*"] to your actual Vercel frontend URL, e.g. ["https://my-roi-app.vercel.app"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
