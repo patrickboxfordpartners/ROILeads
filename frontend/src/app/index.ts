@@ -18,6 +18,8 @@ Usage examples:
 
 */
 
+import { HttpClient } from "../apiclient/http-client";
+
 export {
   API_URL,
   APP_BASE_PATH,
@@ -29,5 +31,12 @@ export {
 
 export * from "./auth";
 
-export { default as apiClient } from "../apiclient";
+// --- CHANGE START ---
+// We replace the default apiClient export with a custom instance
+// configured to use the "/api" relative path for Vercel rewrites.
+export const apiClient = new HttpClient({
+  baseUrl: "/api",
+});
+// --- CHANGE END ---
+
 export * as apiTypes from "../apiclient/data-contracts";
