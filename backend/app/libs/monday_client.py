@@ -27,11 +27,14 @@ class MondayClient:
     """Tiny helper around the Monday.com GraphQL API."""
 
     API_URL = "https://api.monday.com/v2"
-    BOARD_ID = 18384756296
-    ROI_COLUMN_ID = "numeric_mkxwvks"
 
     def __init__(self, *, api_token: Optional[str] = None) -> None:
         self.api_token = api_token or os.environ.get("MONDAY_API_TOKEN")
+        
+        # Load configuration from environment or fall back to defaults
+        self.BOARD_ID = int(os.environ.get("MONDAY_BOARD_ID", "18384756296"))
+        self.ROI_COLUMN_ID = os.environ.get("MONDAY_ROI_COLUMN_ID", "numeric_mkxwvks")
+
         if not self.api_token:
             raise MondayError("MONDAY_API_TOKEN is not configured")
 
@@ -75,7 +78,10 @@ class MondayClient:
                 }
             }
         """
-        variables = {"itemId": item_id, "body": summary}
+        variables = {
+            "itemId": item_id,
+            "body": summary,
+        }
         data = self._post(mutation, variables)
         update_data = data.get("create_update")
         return update_data.get("id") if update_data else None
