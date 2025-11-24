@@ -12,7 +12,7 @@
   "functions": {
     "backend/app/main_prod.py": {
       "maxDuration": 10,
-      "includeFiles": ["backend/**"]
+      "includeFiles": "backend/**"
     }
   }
 }
