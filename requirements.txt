@@ -1,0 +1,2 @@
+# Run inside /backend
+pip freeze > requirements.txt
