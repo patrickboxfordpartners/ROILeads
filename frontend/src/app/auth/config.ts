@@ -12,17 +12,19 @@ type StackAuthExtensionConfig = z.infer<typeof configSchema>;
 // This is set by vite.config.ts
 declare const __STACK_AUTH_CONFIG__: string;
 
-// --- FIX: defensive coding to prevent ReferenceError crash ---
+// --- FIX: Defensive coding to prevent crashes ---
 let rawConfig = {};
 
 try {
-  // We use 'typeof' because it does not crash if the variable is missing entirely
-  if (typeof __STACK_AUTH_CONFIG__ !== "undefined") {
+  // 1. Check if the variable exists (typeof check prevents ReferenceError)
+  // 2. Check if it's not null
+  if (typeof __STACK_AUTH_CONFIG__ !== "undefined" && __STACK_AUTH_CONFIG__) {
     rawConfig = JSON.parse(__STACK_AUTH_CONFIG__) || {};
   }
 } catch (error) {
+  // If anything goes wrong, we just log a warning and use the default {}
   console.warn("Auth config could not be parsed, using defaults.");
 }
 
 export const config: StackAuthExtensionConfig = configSchema.parse(rawConfig);
-// -----------------------------------------------------------
+// ------------------------------------------------
