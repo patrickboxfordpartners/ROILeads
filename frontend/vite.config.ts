@@ -27,29 +27,24 @@ const devxHost =
   process.env.DEVX_HOST ||
   `https://${process.env.APP_VARIANT === "riff" ? "api.riff.new" : "api.databutton.com"}`;
 // Note: During build DEVX_BASE_PATH is set with devx replaced with prodx
-// --- REPLACE WITH THIS ---
-// We force the path to "/" because on Vercel we are serving from the domain root.
+const devxBasePath =
+  process.env.DEVX_BASE_PATH || `/_projects/${projectId}/dbtn/${serviceType}`;
+
+// --- FIX: Force base path to root for Vercel deployment ---
 const APP_BASE_PATH = process.env.APP_BASE_PATH || "/";
+// -----------------------------------------------------------
 
 // API_HOST is typically https://api.databutton.com or https://api.riff.new or https://custom-domain.com or http://localhost:8501
 const API_HOST = process.env.API_HOST || devxHost;
 
 // API path is the path (not including host) to the user app api server.
-// If running in production, use the prod API path,
-// otherwise use the dev API path, e.g.:
-// /_projects/${projectId}/dbtn/prodx/app/routes
-// /_projects/${projectId}/dbtn/devx/app/routes
 const API_PATH = process.env.API_PATH || `${devxBasePath}/app/routes`;
 
-// API_PREFIX_PATH is set in build_router.py to from the apiBasePath parameter in the build endpoint
-// which is called from db-api which is called from firebase.
-// It is set to /api for custom domains or .../prodx/app for default deployments.
-const API_PREFIX_PATH = process.env.API_PREFIX_PATH || API_PATH; // Same as API_PATH now?
+// API_PREFIX_PATH is set in build_router.py 
+const API_PREFIX_PATH = process.env.API_PREFIX_PATH || API_PATH; 
 
-// Full urls to reach the user app backend apis at via our proxy, not for other deployed domains!
-// API HTTP endpoints should be reachable at `${API_URL}/endpointname`
+// Full urls to reach the user app backend apis
 const API_URL = `${API_HOST}${API_PATH}`;
-// API websocket endpoints should be reachable at `${WS_API_URL}/endpointname`
 const WS_API_URL = API_URL.replace("http", "ws");
 
 if (isDevRun) {
@@ -181,41 +176,16 @@ const allDefines: {
   __FIREBASE_CONFIG__?: string;
   __STACK_AUTH_CONFIG__?: string;
 } = {
-  // This used to be a bit complex, I've made an attempt at normalization of the variables.
-  // Scenario: devx runs dockerfile directly
-  // API_HOST = http://localhost:8080
-  // API_PATH = /app/routes
-
-  // Scenario: localhost for testing behind webclient vite proxy
-  // API_HOST = http://localhost:8501
-  // API_PATH = /_projects/$DATABUTTON_PROJECT_ID/dbtn/$DATABUTTON_SERVICE_TYPE/app/routes
-
-  // Scenario: deployed app on custom-domain.com/api
-  // API_HOST = https://custom-domain.com
-  // API_PATH = /api
-
-  // Scenario: deployed app on username.riff.works/appname/api
-  // API_HOST = https://username.riff.works
-  // API_PATH = /appname/api
-
-  // Scenario: devx or prodx service behind api.databutton.com-like proxy
-  // API_HOST = https://api.riff.new
-  // API_PATH = /_projects/$DATABUTTON_PROJECT_ID/dbtn/$DATABUTTON_SERVICE_TYPE/app/routes
-
   __APP_ID__: JSON.stringify(projectId),
   __API_HOST__: JSON.stringify(API_HOST),
   __API_PREFIX_PATH__: JSON.stringify(API_PREFIX_PATH),
-  //
-  __API_PATH__: JSON.stringify(API_PATH), // .../app
-  __API_URL__: JSON.stringify(API_URL), // .../app/routes
-  __WS_API_URL__: JSON.stringify(WS_API_URL), // wss://.../app/routes
-  //
+  __API_PATH__: JSON.stringify(API_PATH),
+  __API_URL__: JSON.stringify(API_URL),
+  __WS_API_URL__: JSON.stringify(WS_API_URL),
   __APP_BASE_PATH__: JSON.stringify(APP_BASE_PATH),
-  //
   __APP_TITLE__: JSON.stringify(APP_TITLE),
   __APP_FAVICON_LIGHT__: JSON.stringify(APP_FAVICON_LIGHT),
   __APP_FAVICON_DARK__: JSON.stringify(APP_FAVICON_DARK),
-  //
   __APP_DEPLOY_USERNAME__: JSON.stringify(process.env.DATABUTTON_USERNAME),
   __APP_DEPLOY_APPNAME__: JSON.stringify(process.env.DATABUTTON_APPNAME),
   __APP_DEPLOY_CUSTOM_DOMAIN__: JSON.stringify(
@@ -275,7 +245,6 @@ export default defineConfig({
         isLocal: process.env.VITE_LOCAL === "true",
       })
     : undefined,
-  // This looks weird but resolution of shadcn components don't work without this double nested resolve.alias.resolve.alias
   resolve: {
     alias: {
       resolve: {
