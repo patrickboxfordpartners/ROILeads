@@ -17,65 +17,32 @@ import { handleTryTscCompile } from "./server/try-tsc-handler";
 
 const isDevRun = process.env.NODE_ENV === "development";
 
-const enableHotReloadTracker = true; // process.env.ENABLE_UI_HOTRELOAD_TRACKER === "true";
+const enableHotReloadTracker = true; 
 
 const projectId = process.env.DATABUTTON_PROJECT_ID || "MISSING-PROJECT-ID";
-const serviceType = process.env.DATABUTTON_SERVICE_TYPE || "devx"; // Always devx actually
+const serviceType = process.env.DATABUTTON_SERVICE_TYPE || "devx"; 
 
-// External host+path prefix to devx container root
 const devxHost =
   process.env.DEVX_HOST ||
   `https://${process.env.APP_VARIANT === "riff" ? "api.riff.new" : "api.databutton.com"}`;
-// Note: During build DEVX_BASE_PATH is set with devx replaced with prodx
+
 const devxBasePath =
   process.env.DEVX_BASE_PATH || `/_projects/${projectId}/dbtn/${serviceType}`;
 
-// --- FIX: Force base path to root for Vercel deployment ---
+// --- FIX 1: Force base path to root for Vercel ---
 const APP_BASE_PATH = process.env.APP_BASE_PATH || "/";
-// -----------------------------------------------------------
+// --------------------------------------------------
 
-// API_HOST is typically https://api.databutton.com or https://api.riff.new or https://custom-domain.com or http://localhost:8501
 const API_HOST = process.env.API_HOST || devxHost;
-
-// API path is the path (not including host) to the user app api server.
 const API_PATH = process.env.API_PATH || `${devxBasePath}/app/routes`;
-
-// API_PREFIX_PATH is set in build_router.py 
 const API_PREFIX_PATH = process.env.API_PREFIX_PATH || API_PATH; 
 
-// Full urls to reach the user app backend apis
 const API_URL = `${API_HOST}${API_PATH}`;
 const WS_API_URL = API_URL.replace("http", "ws");
 
-if (isDevRun) {
-  console.warn(`
-    Input Vite env:
-      DEVX_HOST=${process.env.DEVX_HOST}
-      DEVX_BASE_PATH=${process.env.DEVX_BASE_PATH}
-      APP_BASE_PATH=${process.env.APP_BASE_PATH}
-      API_HOST=${process.env.API_HOST}
-      API_PATH=${process.env.API_PATH}
-      API_PREFIX_PATH=${process.env.API_PREFIX_PATH}
-      API_URL=${process.env.API_URL}
-      WS_API_URL=${process.env.WS_API_URL}
-
-    Resolved Vite config:
-      devxHost=${devxHost}
-      devxBasePath=${devxBasePath}
-      APP_BASE_PATH=${APP_BASE_PATH}
-      API_HOST=${API_HOST}
-      API_PATH=${API_PATH}
-      API_PREFIX_PATH=${API_PREFIX_PATH}
-      API_URL=${API_URL}
-      WS_API_URL=${WS_API_URL}
-`);
-}
-
 const coalesce = (...args: (string | undefined)[]): string => {
   for (const s of args) {
-    if (s) {
-      return s;
-    }
+    if (s) return s;
   }
   throw new Error("All values are falsy.");
 };
@@ -103,49 +70,26 @@ const htmlPlugin = () => {
     name: "html-transform",
     transformIndexHtml(html: string) {
       let newHtml = html;
-
       if (APP_TITLE) {
-        newHtml = newHtml.replace(
-          /<title>(.*?)<\/title>/,
-          `<title>${APP_TITLE}</title>`,
-        );
+        newHtml = newHtml.replace(/<title>(.*?)<\/title>/, `<title>${APP_TITLE}</title>`);
       }
-
       if (APP_FAVICON_LIGHT) {
-        newHtml = newHtml.replace(
-          /href="(.*?)\/light.ico"/,
-          `href="${APP_FAVICON_LIGHT}"`,
-        );
+        newHtml = newHtml.replace(/href="(.*?)\/light.ico"/, `href="${APP_FAVICON_LIGHT}"`);
       }
-
       if (APP_FAVICON_DARK) {
-        newHtml = newHtml.replace(
-          /href="(.*?)\/dark.ico"/,
-          `href="${APP_FAVICON_DARK}"`,
-        );
+        newHtml = newHtml.replace(/href="(.*?)\/dark.ico"/, `href="${APP_FAVICON_DARK}"`);
       }
-
       return newHtml;
     },
   };
 };
 
-const isFirebaseAuthExtensionEnabled = isExtensionEnabled(
-  ExtensionName.FIREBASE_AUTH,
-);
-
-const isStackAuthExtensionEnabled = isExtensionEnabled(
-  ExtensionName.STACK_AUTH,
-);
-
-const authExtensionEnabled =
-  isFirebaseAuthExtensionEnabled || isStackAuthExtensionEnabled;
+const isFirebaseAuthExtensionEnabled = isExtensionEnabled(ExtensionName.FIREBASE_AUTH);
+const isStackAuthExtensionEnabled = isExtensionEnabled(ExtensionName.STACK_AUTH);
+const authExtensionEnabled = isFirebaseAuthExtensionEnabled || isStackAuthExtensionEnabled;
 
 const uiDevServerPlugin = (): Plugin => {
-  const openApiSpecHandler = buildOpenApiSpecHandler({
-    authExtensionEnabled,
-  });
-
+  const openApiSpecHandler = buildOpenApiSpecHandler({ authExtensionEnabled });
   return {
     name: "vite-server",
     configureServer(server) {
@@ -155,7 +99,7 @@ const uiDevServerPlugin = (): Plugin => {
   };
 };
 
-// --- FIX START: Safely define auth configs ---
+// --- FIX 2: Always define these variables ---
 const firebaseConfig = isFirebaseAuthExtensionEnabled
   ? JSON.stringify(getExtensionConfig(ExtensionName.FIREBASE_AUTH))
   : "null";
@@ -164,23 +108,7 @@ const stackAuthConfig = isStackAuthExtensionEnabled
   ? JSON.stringify(getExtensionConfig(ExtensionName.STACK_AUTH))
   : "null";
 
-const allDefines: {
-  __APP_ID__: string;
-  __API_HOST__: string;
-  __API_PREFIX_PATH__: string;
-  __API_PATH__: string;
-  __API_URL__: string;
-  __WS_API_URL__: string;
-  __APP_BASE_PATH__: string;
-  __APP_TITLE__: string;
-  __APP_FAVICON_LIGHT__: string;
-  __APP_FAVICON_DARK__: string;
-  __APP_DEPLOY_USERNAME__: string;
-  __APP_DEPLOY_APPNAME__: string;
-  __APP_DEPLOY_CUSTOM_DOMAIN__: string;
-  __FIREBASE_CONFIG__: string;
-  __STACK_AUTH_CONFIG__: string;
-} = {
+const allDefines = {
   __APP_ID__: JSON.stringify(projectId),
   __API_HOST__: JSON.stringify(API_HOST),
   __API_PREFIX_PATH__: JSON.stringify(API_PREFIX_PATH),
@@ -193,14 +121,12 @@ const allDefines: {
   __APP_FAVICON_DARK__: JSON.stringify(APP_FAVICON_DARK),
   __APP_DEPLOY_USERNAME__: JSON.stringify(process.env.DATABUTTON_USERNAME),
   __APP_DEPLOY_APPNAME__: JSON.stringify(process.env.DATABUTTON_APPNAME),
-  __APP_DEPLOY_CUSTOM_DOMAIN__: JSON.stringify(
-    process.env.DATABUTTON_CUSTOM_DOMAIN,
-  ),
-  // Always define these, even if they are null
+  __APP_DEPLOY_CUSTOM_DOMAIN__: JSON.stringify(process.env.DATABUTTON_CUSTOM_DOMAIN),
+  // These are now ALWAYS defined, preventing the ReferenceError
   __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig),
   __STACK_AUTH_CONFIG__: JSON.stringify(stackAuthConfig),
 };
-// --- FIX END ---
+// -------------------------------------------
 
 export default defineConfig({
   base: APP_BASE_PATH,
@@ -221,26 +147,15 @@ export default defineConfig({
   ].filter(Boolean),
   server: {
     port: 5173,
-    hmr: {
-      overlay: false,
-    },
+    hmr: { overlay: false },
     watch: {
       usePolling: true,
       interval: 200,
-      ignored: [
-        "**/node_modules/**",
-        "**/.git/**",
-        "**/dist/**",
-        "**/.log/**",
-        "**/.cache/**",
-        "**/.yarn/**",
-      ],
+      ignored: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/.log/**", "**/.cache/**", "**/.yarn/**"],
     },
   },
   customLogger: isDevRun
-    ? createRiffLogger({
-        isLocal: process.env.VITE_LOCAL === "true",
-      })
+    ? createRiffLogger({ isLocal: process.env.VITE_LOCAL === "true" })
     : undefined,
   resolve: {
     alias: {
