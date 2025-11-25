@@ -27,13 +27,9 @@ const devxHost =
   process.env.DEVX_HOST ||
   `https://${process.env.APP_VARIANT === "riff" ? "api.riff.new" : "api.databutton.com"}`;
 // Note: During build DEVX_BASE_PATH is set with devx replaced with prodx
-const devxBasePath =
-  process.env.DEVX_BASE_PATH || `/_projects/${projectId}/dbtn/${serviceType}`;
-
-// Caddy does: handle_path /ui/* { rewrite * {$DEVX_BASE_PATH}/ui{path}; ... }
-// meaning browser hits (host)/{$DEVX_BASE_PATH}/ui/ to reach vite server.
-// If APP_BASE_PATH is set, use it as override, otherwise use DEVX_BASE_PATH + /ui combination
-const APP_BASE_PATH = process.env.APP_BASE_PATH || `${devxBasePath}/ui`;
+// --- REPLACE WITH THIS ---
+// We force the path to "/" because on Vercel we are serving from the domain root.
+const APP_BASE_PATH = process.env.APP_BASE_PATH || "/";
 
 // API_HOST is typically https://api.databutton.com or https://api.riff.new or https://custom-domain.com or http://localhost:8501
 const API_HOST = process.env.API_HOST || devxHost;
