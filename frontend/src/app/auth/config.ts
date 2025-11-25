@@ -12,6 +12,10 @@ type StackAuthExtensionConfig = z.infer<typeof configSchema>;
 // This is set by vite.config.ts
 declare const __STACK_AUTH_CONFIG__: string;
 
+// --- FIX: Handle null config (when extension is disabled) ---
+const rawConfig = JSON.parse(__STACK_AUTH_CONFIG__);
+
 export const config: StackAuthExtensionConfig = configSchema.parse(
-  JSON.parse(__STACK_AUTH_CONFIG__),
+  rawConfig || {}
 );
+// -----------------------------------------------------------
