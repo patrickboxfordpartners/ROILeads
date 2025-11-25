@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/backend/app/main_prod.py"
+      "destination": "/api/index.py"
     },
     {
       "source": "/(.*)",
@@ -10,7 +10,7 @@
     }
   ],
   "functions": {
-    "backend/app/main_prod.py": {
+    "api/index.py": {
       "maxDuration": 10,
       "includeFiles": "backend/**"
     }
