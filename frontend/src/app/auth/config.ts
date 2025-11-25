@@ -1,21 +1,254 @@
-import { z } from "zod";
+import react from "@vitejs/plugin-react-swc";
+import "dotenv/config";
+import path from "node:path";
+import { defineConfig, splitVendorChunkPlugin, type Plugin } from "vite";
+import injectHTML from "vite-plugin-html-inject";
+import tsConfigPaths from "vite-tsconfig-paths";
+import { componentTaggerPlugin } from "./server/component-tagger-plugin";
+import {
+  ExtensionName,
+  getExtensionConfig,
+  isExtensionEnabled,
+} from "./server/extensions";
+import { hotReloadTrackerPlugin } from "./server/hotreload-tracker";
+import { createRiffLogger } from "./server/logger";
+import { buildOpenApiSpecHandler } from "./server/openapi-spec-handler";
+import { handleTryTscCompile } from "./server/try-tsc-handler";
 
-const configSchema = z.object({
-  projectId: z.string().default(""),
-  jwksUrl: z.string().default(""),
-  publishableClientKey: z.string().default(""),
-  handlerUrl: z.string().default("auth"),
-});
+const isDevRun = process.env.NODE_ENV === "development";
 
-type StackAuthExtensionConfig = z.infer<typeof configSchema>;
+const enableHotReloadTracker = true; // process.env.ENABLE_UI_HOTRELOAD_TRACKER === "true";
 
-// This is set by vite.config.ts
-declare const __STACK_AUTH_CONFIG__: string;
+const projectId = process.env.DATABUTTON_PROJECT_ID || "MISSING-PROJECT-ID";
+const serviceType = process.env.DATABUTTON_SERVICE_TYPE || "devx"; // Always devx actually
 
-// --- FIX: Handle null config (when extension is disabled) ---
-const rawConfig = JSON.parse(__STACK_AUTH_CONFIG__);
+// External host+path prefix to devx container root
+const devxHost =
+  process.env.DEVX_HOST ||
+  `https://${process.env.APP_VARIANT === "riff" ? "api.riff.new" : "api.databutton.com"}`;
+// Note: During build DEVX_BASE_PATH is set with devx replaced with prodx
+const devxBasePath =
+  process.env.DEVX_BASE_PATH || `/_projects/${projectId}/dbtn/${serviceType}`;
 
-export const config: StackAuthExtensionConfig = configSchema.parse(
-  rawConfig || {}
-);
+// --- FIX 1: Force base path to root for Vercel deployment ---
+const APP_BASE_PATH = process.env.APP_BASE_PATH || "/";
 // -----------------------------------------------------------
+
+// API_HOST is typically https://api.databutton.com or https://api.riff.new or https://custom-domain.com or http://localhost:8501
+const API_HOST = process.env.API_HOST || devxHost;
+
+// API path is the path (not including host) to the user app api server.
+const API_PATH = process.env.API_PATH || `${devxBasePath}/app/routes`;
+
+// API_PREFIX_PATH is set in build_router.py 
+const API_PREFIX_PATH = process.env.API_PREFIX_PATH || API_PATH; 
+
+// Full urls to reach the user app backend apis
+const API_URL = `${API_HOST}${API_PATH}`;
+const WS_API_URL = API_URL.replace("http", "ws");
+
+if (isDevRun) {
+  console.warn(`
+    Input Vite env:
+      DEVX_HOST=${process.env.DEVX_HOST}
+      DEVX_BASE_PATH=${process.env.DEVX_BASE_PATH}
+      APP_BASE_PATH=${process.env.APP_BASE_PATH}
+      API_HOST=${process.env.API_HOST}
+      API_PATH=${process.env.API_PATH}
+      API_PREFIX_PATH=${process.env.API_PREFIX_PATH}
+      API_URL=${process.env.API_URL}
+      WS_API_URL=${process.env.WS_API_URL}
+
+    Resolved Vite config:
+      devxHost=${devxHost}
+      devxBasePath=${devxBasePath}
+      APP_BASE_PATH=${APP_BASE_PATH}
+      API_HOST=${API_HOST}
+      API_PATH=${API_PATH}
+      API_PREFIX_PATH=${API_PREFIX_PATH}
+      API_URL=${API_URL}
+      WS_API_URL=${WS_API_URL}
+`);
+}
+
+const coalesce = (...args: (string | undefined)[]): string => {
+  for (const s of args) {
+    if (s) {
+      return s;
+    }
+  }
+  throw new Error("All values are falsy.");
+};
+
+const APP_TITLE = coalesce(
+  process.env.APP_TITLE,
+  process.env.DATABUTTON_APPNAME,
+  "Riff",
+);
+
+const APP_FAVICON_LIGHT = coalesce(
+  process.env.APP_FAVICON_LIGHT,
+  process.env.APP_FAVICON_DARK,
+  `${APP_BASE_PATH}/icon.png`.replace("//", "/"),
+);
+
+const APP_FAVICON_DARK = coalesce(
+  process.env.APP_FAVICON_DARK,
+  process.env.APP_FAVICON_LIGHT,
+  `${APP_BASE_PATH}/icon.png`.replace("//", "/"),
+);
+
+const htmlPlugin = () => {
+  return {
+    name: "html-transform",
+    transformIndexHtml(html: string) {
+      let newHtml = html;
+
+      if (APP_TITLE) {
+        newHtml = newHtml.replace(
+          /<title>(.*?)<\/title>/,
+          `<title>${APP_TITLE}</title>`,
+        );
+      }
+
+      if (APP_FAVICON_LIGHT) {
+        newHtml = newHtml.replace(
+          /href="(.*?)\/light.ico"/,
+          `href="${APP_FAVICON_LIGHT}"`,
+        );
+      }
+
+      if (APP_FAVICON_DARK) {
+        newHtml = newHtml.replace(
+          /href="(.*?)\/dark.ico"/,
+          `href="${APP_FAVICON_DARK}"`,
+        );
+      }
+
+      return newHtml;
+    },
+  };
+};
+
+const isFirebaseAuthExtensionEnabled = isExtensionEnabled(
+  ExtensionName.FIREBASE_AUTH,
+);
+
+const isStackAuthExtensionEnabled = isExtensionEnabled(
+  ExtensionName.STACK_AUTH,
+);
+
+const authExtensionEnabled =
+  isFirebaseAuthExtensionEnabled || isStackAuthExtensionEnabled;
+
+const uiDevServerPlugin = (): Plugin => {
+  const openApiSpecHandler = buildOpenApiSpecHandler({
+    authExtensionEnabled,
+  });
+
+  return {
+    name: "vite-server",
+    configureServer(server) {
+      server.middlewares.use("/api/new-openapi-spec", openApiSpecHandler);
+      server.middlewares.use("/api/tsc-diagnostics", handleTryTscCompile);
+    },
+  };
+};
+
+// --- FIX 2: Define Auth Configs to prevent ReferenceError ---
+const firebaseConfig = isFirebaseAuthExtensionEnabled
+  ? JSON.stringify(getExtensionConfig(ExtensionName.FIREBASE_AUTH))
+  : "null";
+
+const stackAuthConfig = isStackAuthExtensionEnabled
+  ? JSON.stringify(getExtensionConfig(ExtensionName.STACK_AUTH))
+  : "null";
+
+const allDefines: {
+  __APP_ID__: string;
+  __API_HOST__: string;
+  __API_PREFIX_PATH__: string;
+  __API_PATH__: string;
+  __API_URL__: string;
+  __WS_API_URL__: string;
+  __APP_BASE_PATH__: string;
+  __APP_TITLE__: string;
+  __APP_FAVICON_LIGHT__: string;
+  __APP_FAVICON_DARK__: string;
+  __APP_DEPLOY_USERNAME__: string;
+  __APP_DEPLOY_APPNAME__: string;
+  __APP_DEPLOY_CUSTOM_DOMAIN__: string;
+  __FIREBASE_CONFIG__: string;
+  __STACK_AUTH_CONFIG__: string;
+} = {
+  __APP_ID__: JSON.stringify(projectId),
+  __API_HOST__: JSON.stringify(API_HOST),
+  __API_PREFIX_PATH__: JSON.stringify(API_PREFIX_PATH),
+  __API_PATH__: JSON.stringify(API_PATH),
+  __API_URL__: JSON.stringify(API_URL),
+  __WS_API_URL__: JSON.stringify(WS_API_URL),
+  __APP_BASE_PATH__: JSON.stringify(APP_BASE_PATH),
+  __APP_TITLE__: JSON.stringify(APP_TITLE),
+  __APP_FAVICON_LIGHT__: JSON.stringify(APP_FAVICON_LIGHT),
+  __APP_FAVICON_DARK__: JSON.stringify(APP_FAVICON_DARK),
+  __APP_DEPLOY_USERNAME__: JSON.stringify(process.env.DATABUTTON_USERNAME),
+  __APP_DEPLOY_APPNAME__: JSON.stringify(process.env.DATABUTTON_APPNAME),
+  __APP_DEPLOY_CUSTOM_DOMAIN__: JSON.stringify(
+    process.env.DATABUTTON_CUSTOM_DOMAIN,
+  ),
+  // These definitions are critical:
+  __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig),
+  __STACK_AUTH_CONFIG__: JSON.stringify(stackAuthConfig),
+};
+// -----------------------------------------------------------
+
+export default defineConfig({
+  base: APP_BASE_PATH,
+  define: allDefines,
+  plugins: [
+    react(),
+    splitVendorChunkPlugin(),
+    tsConfigPaths(),
+    htmlPlugin(),
+    injectHTML(),
+    ...(isDevRun
+      ? [
+          enableHotReloadTracker && hotReloadTrackerPlugin(),
+          uiDevServerPlugin(),
+          componentTaggerPlugin(),
+        ]
+      : []),
+  ].filter(Boolean),
+  server: {
+    port: 5173,
+    hmr: {
+      overlay: false,
+    },
+    watch: {
+      usePolling: true,
+      interval: 200,
+      ignored: [
+        "**/node_modules/**",
+        "**/.git/**",
+        "**/dist/**",
+        "**/.log/**",
+        "**/.cache/**",
+        "**/.yarn/**",
+      ],
+    },
+  },
+  customLogger: isDevRun
+    ? createRiffLogger({
+        isLocal: process.env.VITE_LOCAL === "true",
+      })
+    : undefined,
+  resolve: {
+    alias: {
+      resolve: {
+        alias: {
+          "@": path.resolve(__dirname, "./src"),
+        },
+      },
+    },
+  },
+});
