@@ -49,9 +49,7 @@ const WS_API_URL = API_URL.replace("http", "ws");
 
 if (isDevRun) {
   console.warn(`
-
     Input Vite env:
-
       DEVX_HOST=${process.env.DEVX_HOST}
       DEVX_BASE_PATH=${process.env.DEVX_BASE_PATH}
       APP_BASE_PATH=${process.env.APP_BASE_PATH}
@@ -62,7 +60,6 @@ if (isDevRun) {
       WS_API_URL=${process.env.WS_API_URL}
 
     Resolved Vite config:
-
       devxHost=${devxHost}
       devxBasePath=${devxBasePath}
       APP_BASE_PATH=${APP_BASE_PATH}
@@ -71,7 +68,6 @@ if (isDevRun) {
       API_PREFIX_PATH=${API_PREFIX_PATH}
       API_URL=${API_URL}
       WS_API_URL=${WS_API_URL}
-
 `);
 }
 
@@ -159,6 +155,15 @@ const uiDevServerPlugin = (): Plugin => {
   };
 };
 
+// --- FIX START: Safely define auth configs ---
+const firebaseConfig = isFirebaseAuthExtensionEnabled
+  ? JSON.stringify(getExtensionConfig(ExtensionName.FIREBASE_AUTH))
+  : "null";
+
+const stackAuthConfig = isStackAuthExtensionEnabled
+  ? JSON.stringify(getExtensionConfig(ExtensionName.STACK_AUTH))
+  : "null";
+
 const allDefines: {
   __APP_ID__: string;
   __API_HOST__: string;
@@ -173,8 +178,8 @@ const allDefines: {
   __APP_DEPLOY_USERNAME__: string;
   __APP_DEPLOY_APPNAME__: string;
   __APP_DEPLOY_CUSTOM_DOMAIN__: string;
-  __FIREBASE_CONFIG__?: string;
-  __STACK_AUTH_CONFIG__?: string;
+  __FIREBASE_CONFIG__: string;
+  __STACK_AUTH_CONFIG__: string;
 } = {
   __APP_ID__: JSON.stringify(projectId),
   __API_HOST__: JSON.stringify(API_HOST),
@@ -191,19 +196,11 @@ const allDefines: {
   __APP_DEPLOY_CUSTOM_DOMAIN__: JSON.stringify(
     process.env.DATABUTTON_CUSTOM_DOMAIN,
   ),
+  // Always define these, even if they are null
+  __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig),
+  __STACK_AUTH_CONFIG__: JSON.stringify(stackAuthConfig),
 };
-
-if (isFirebaseAuthExtensionEnabled) {
-  allDefines.__FIREBASE_CONFIG__ = JSON.stringify(
-    JSON.stringify(getExtensionConfig(ExtensionName.FIREBASE_AUTH)),
-  );
-}
-
-if (isStackAuthExtensionEnabled) {
-  allDefines.__STACK_AUTH_CONFIG__ = JSON.stringify(
-    JSON.stringify(getExtensionConfig(ExtensionName.STACK_AUTH)),
-  );
-}
+// --- FIX END ---
 
 export default defineConfig({
   base: APP_BASE_PATH,
