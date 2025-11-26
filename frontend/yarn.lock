@@ -6416,6 +6416,7 @@ __metadata:
     class-variance-authority: "npm:^0.7.0"
     clsx: "npm:^2.1.1"
     cmdk: "npm:1.0.0"
+    date-fns: "npm:^3.6.0"
     dotenv: "npm:16.4.5"
     embla-carousel-react: "npm:^8.2.1"
     eslint: "npm:8.45.0"
