@@ -7,8 +7,6 @@ from app.apis.roi import router as roi_router
 
 # Initialize FastAPI with root_path="/api"
 # This tells FastAPI that it is sitting behind a proxy (Vercel)
-# that is stripping the "/api" prefix, or that the prefix exists
-# so docs and redirects generate correctly.
 app = FastAPI(
     title="ROI Calculator API",
     root_path="/api"
