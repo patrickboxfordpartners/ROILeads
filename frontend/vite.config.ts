@@ -5,34 +5,24 @@ import { defineConfig, splitVendorChunkPlugin, type Plugin } from "vite";
 import injectHTML from "vite-plugin-html-inject";
 import tsConfigPaths from "vite-tsconfig-paths";
 import { componentTaggerPlugin } from "./server/component-tagger-plugin";
-import {
-  ExtensionName,
-  getExtensionConfig,
-  isExtensionEnabled,
-} from "./server/extensions";
+import { ExtensionName, getExtensionConfig, isExtensionEnabled } from "./server/extensions";
 import { hotReloadTrackerPlugin } from "./server/hotreload-tracker";
 import { createRiffLogger } from "./server/logger";
 import { buildOpenApiSpecHandler } from "./server/openapi-spec-handler";
 import { handleTryTscCompile } from "./server/try-tsc-handler";
 
 const isDevRun = process.env.NODE_ENV === "development";
-const enableHotReloadTracker = true;
-
 const projectId = process.env.DATABUTTON_PROJECT_ID || "MISSING-PROJECT-ID";
 const serviceType = process.env.DATABUTTON_SERVICE_TYPE || "devx";
-
 const devxHost = process.env.DEVX_HOST || `https://${process.env.APP_VARIANT === "riff" ? "api.riff.new" : "api.databutton.com"}`;
 const devxBasePath = process.env.DEVX_BASE_PATH || `/_projects/${projectId}/dbtn/${serviceType}`;
 
 // --- FIX 1: Force Base Path to Root ---
-// This ensures assets load correctly on Vercel
 const APP_BASE_PATH = process.env.APP_BASE_PATH || "/";
-// ---------------------------------------
 
 const API_HOST = process.env.API_HOST || devxHost;
 const API_PATH = process.env.API_PATH || `${devxBasePath}/app/routes`;
 const API_PREFIX_PATH = process.env.API_PREFIX_PATH || API_PATH;
-
 const API_URL = `${API_HOST}${API_PATH}`;
 const WS_API_URL = API_URL.replace("http", "ws");
 
@@ -73,16 +63,9 @@ const uiDevServerPlugin = (): Plugin => {
   };
 };
 
-// --- FIX 2: Robust Auth Config Definitions ---
-// We define these as empty object strings "{}" instead of "null".
-// This prevents the app from crashing when it tries to parse the config.
-const firebaseConfig = isFirebaseAuthExtensionEnabled
-  ? JSON.stringify(getExtensionConfig(ExtensionName.FIREBASE_AUTH))
-  : "{}";
-
-const stackAuthConfig = isStackAuthExtensionEnabled
-  ? JSON.stringify(getExtensionConfig(ExtensionName.STACK_AUTH))
-  : "{}";
+// --- FIX 2: Hardcode empty objects for configs ---
+const firebaseConfig = "{}";
+const stackAuthConfig = "{}";
 
 const allDefines = {
   __APP_ID__: JSON.stringify(projectId),
@@ -98,7 +81,6 @@ const allDefines = {
   __APP_DEPLOY_USERNAME__: JSON.stringify(process.env.DATABUTTON_USERNAME),
   __APP_DEPLOY_APPNAME__: JSON.stringify(process.env.DATABUTTON_APPNAME),
   __APP_DEPLOY_CUSTOM_DOMAIN__: JSON.stringify(process.env.DATABUTTON_CUSTOM_DOMAIN),
-  // Always defined as stringified objects to prevent ReferenceError
   __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig),
   __STACK_AUTH_CONFIG__: JSON.stringify(stackAuthConfig),
 };
@@ -112,7 +94,7 @@ export default defineConfig({
     tsConfigPaths(),
     htmlPlugin(),
     injectHTML(),
-    ...(isDevRun ? [enableHotReloadTracker && hotReloadTrackerPlugin(), uiDevServerPlugin(), componentTaggerPlugin()] : []),
+    ...(isDevRun ? [hotReloadTrackerPlugin(), uiDevServerPlugin(), componentTaggerPlugin()] : []),
   ].filter(Boolean),
   server: {
     port: 5173,
