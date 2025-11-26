@@ -1,8 +1,24 @@
 /*
 This file is here for exporting a stable API for users apps.
+
+Usage examples:
+
+  // API endpoints can be called via the app apiClient
+  // assuming an endpoint definition like @router.get("/example-endpoint")
+  import { apiClient, apiTypes } from "app";
+  const response: apiTypes.EndpointExampleResponseType = await apiClient.example_endpoint({...})
+
+  // API websocket endpoints are reachable at `${WS_API_URL}/example-websocket-endpoint`
+  // assuming an endpoint definition like @router.get("/example-websocket-endpoint")
+  import { WS_API_URL } from "app";
+  const socket = new WebSocket(`${WS_API_URL}/example-websocket-endpoint`)
+
+  // API HTTP endpoints are also reachable at `${API_URL}/example-endpoint`
+  import { API_URL } from "app";
+
 */
 
-import { Api } from "../apiclient/Apiclient"; // Import the specific generated class
+import { HttpClient } from "../apiclient/http-client";
 
 export {
   API_URL,
@@ -15,10 +31,13 @@ export {
 
 export * from "./auth";
 
-// --- FIX: Instantiate the generated API class, not the generic HttpClient ---
-export const apiClient = new Api({
-  baseUrl: "/api", // This relative path works with the Vercel rewrite rule
+export { default as apiClient } from "../apiclient";
+// --- CHANGE START ---
+// We replace the default apiClient export with a custom instance
+// configured to use the "/api" relative path for Vercel rewrites.
+export const apiClient = new HttpClient({
+  baseUrl: "/api",
 });
-// ---------------------------------------------------------------------------
+// --- CHANGE END ---
 
 export * as apiTypes from "../apiclient/data-contracts";
