@@ -16,69 +16,42 @@ import { buildOpenApiSpecHandler } from "./server/openapi-spec-handler";
 import { handleTryTscCompile } from "./server/try-tsc-handler";
 
 const isDevRun = process.env.NODE_ENV === "development";
-
-const enableHotReloadTracker = true; 
+const enableHotReloadTracker = true;
 
 const projectId = process.env.DATABUTTON_PROJECT_ID || "MISSING-PROJECT-ID";
-const serviceType = process.env.DATABUTTON_SERVICE_TYPE || "devx"; 
+const serviceType = process.env.DATABUTTON_SERVICE_TYPE || "devx";
 
-const devxHost =
-  process.env.DEVX_HOST ||
-  `https://${process.env.APP_VARIANT === "riff" ? "api.riff.new" : "api.databutton.com"}`;
+const devxHost = process.env.DEVX_HOST || `https://${process.env.APP_VARIANT === "riff" ? "api.riff.new" : "api.databutton.com"}`;
+const devxBasePath = process.env.DEVX_BASE_PATH || `/_projects/${projectId}/dbtn/${serviceType}`;
 
-const devxBasePath =
-  process.env.DEVX_BASE_PATH || `/_projects/${projectId}/dbtn/${serviceType}`;
-
-// --- FIX 1: Force base path to root for Vercel ---
+// --- FIX 1: Force Base Path to Root ---
 const APP_BASE_PATH = process.env.APP_BASE_PATH || "/";
-// --------------------------------------------------
+// ---------------------------------------
 
 const API_HOST = process.env.API_HOST || devxHost;
 const API_PATH = process.env.API_PATH || `${devxBasePath}/app/routes`;
-const API_PREFIX_PATH = process.env.API_PREFIX_PATH || API_PATH; 
+const API_PREFIX_PATH = process.env.API_PREFIX_PATH || API_PATH;
 
 const API_URL = `${API_HOST}${API_PATH}`;
 const WS_API_URL = API_URL.replace("http", "ws");
 
 const coalesce = (...args: (string | undefined)[]): string => {
-  for (const s of args) {
-    if (s) return s;
-  }
+  for (const s of args) { if (s) return s; }
   throw new Error("All values are falsy.");
 };
 
-const APP_TITLE = coalesce(
-  process.env.APP_TITLE,
-  process.env.DATABUTTON_APPNAME,
-  "Riff",
-);
-
-const APP_FAVICON_LIGHT = coalesce(
-  process.env.APP_FAVICON_LIGHT,
-  process.env.APP_FAVICON_DARK,
-  `${APP_BASE_PATH}/icon.png`.replace("//", "/"),
-);
-
-const APP_FAVICON_DARK = coalesce(
-  process.env.APP_FAVICON_DARK,
-  process.env.APP_FAVICON_LIGHT,
-  `${APP_BASE_PATH}/icon.png`.replace("//", "/"),
-);
+const APP_TITLE = coalesce(process.env.APP_TITLE, process.env.DATABUTTON_APPNAME, "Riff");
+const APP_FAVICON_LIGHT = coalesce(process.env.APP_FAVICON_LIGHT, process.env.APP_FAVICON_DARK, `${APP_BASE_PATH}/icon.png`.replace("//", "/"));
+const APP_FAVICON_DARK = coalesce(process.env.APP_FAVICON_DARK, process.env.APP_FAVICON_LIGHT, `${APP_BASE_PATH}/icon.png`.replace("//", "/"));
 
 const htmlPlugin = () => {
   return {
     name: "html-transform",
     transformIndexHtml(html: string) {
       let newHtml = html;
-      if (APP_TITLE) {
-        newHtml = newHtml.replace(/<title>(.*?)<\/title>/, `<title>${APP_TITLE}</title>`);
-      }
-      if (APP_FAVICON_LIGHT) {
-        newHtml = newHtml.replace(/href="(.*?)\/light.ico"/, `href="${APP_FAVICON_LIGHT}"`);
-      }
-      if (APP_FAVICON_DARK) {
-        newHtml = newHtml.replace(/href="(.*?)\/dark.ico"/, `href="${APP_FAVICON_DARK}"`);
-      }
+      if (APP_TITLE) newHtml = newHtml.replace(/<title>(.*?)<\/title>/, `<title>${APP_TITLE}</title>`);
+      if (APP_FAVICON_LIGHT) newHtml = newHtml.replace(/href="(.*?)\/light.ico"/, `href="${APP_FAVICON_LIGHT}"`);
+      if (APP_FAVICON_DARK) newHtml = newHtml.replace(/href="(.*?)\/dark.ico"/, `href="${APP_FAVICON_DARK}"`);
       return newHtml;
     },
   };
@@ -99,14 +72,15 @@ const uiDevServerPlugin = (): Plugin => {
   };
 };
 
-// --- FIX 2: Always define these variables ---
+// --- FIX 2: Robust Auth Config Definitions ---
+// If disabled, we default to "{}" (empty object string) instead of "null" to prevent JSON parse errors.
 const firebaseConfig = isFirebaseAuthExtensionEnabled
   ? JSON.stringify(getExtensionConfig(ExtensionName.FIREBASE_AUTH))
-  : "null";
+  : "{}";
 
 const stackAuthConfig = isStackAuthExtensionEnabled
   ? JSON.stringify(getExtensionConfig(ExtensionName.STACK_AUTH))
-  : "null";
+  : "{}";
 
 const allDefines = {
   __APP_ID__: JSON.stringify(projectId),
@@ -122,11 +96,10 @@ const allDefines = {
   __APP_DEPLOY_USERNAME__: JSON.stringify(process.env.DATABUTTON_USERNAME),
   __APP_DEPLOY_APPNAME__: JSON.stringify(process.env.DATABUTTON_APPNAME),
   __APP_DEPLOY_CUSTOM_DOMAIN__: JSON.stringify(process.env.DATABUTTON_CUSTOM_DOMAIN),
-  // These are now ALWAYS defined, preventing the ReferenceError
+  // Always defined as stringified objects
   __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig),
   __STACK_AUTH_CONFIG__: JSON.stringify(stackAuthConfig),
 };
-// -------------------------------------------
 
 export default defineConfig({
   base: APP_BASE_PATH,
@@ -137,33 +110,15 @@ export default defineConfig({
     tsConfigPaths(),
     htmlPlugin(),
     injectHTML(),
-    ...(isDevRun
-      ? [
-          enableHotReloadTracker && hotReloadTrackerPlugin(),
-          uiDevServerPlugin(),
-          componentTaggerPlugin(),
-        ]
-      : []),
+    ...(isDevRun ? [enableHotReloadTracker && hotReloadTrackerPlugin(), uiDevServerPlugin(), componentTaggerPlugin()] : []),
   ].filter(Boolean),
   server: {
     port: 5173,
     hmr: { overlay: false },
-    watch: {
-      usePolling: true,
-      interval: 200,
-      ignored: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/.log/**", "**/.cache/**", "**/.yarn/**"],
-    },
+    watch: { usePolling: true, interval: 200, ignored: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/.log/**", "**/.cache/**", "**/.yarn/**"] },
   },
-  customLogger: isDevRun
-    ? createRiffLogger({ isLocal: process.env.VITE_LOCAL === "true" })
-    : undefined,
+  customLogger: isDevRun ? createRiffLogger({ isLocal: process.env.VITE_LOCAL === "true" }) : undefined,
   resolve: {
-    alias: {
-      resolve: {
-        alias: {
-          "@": path.resolve(__dirname, "./src"),
-        },
-      },
-    },
+    alias: { resolve: { alias: { "@": path.resolve(__dirname, "./src") } } },
   },
 });
