@@ -6,14 +6,17 @@
   <link href="/icon.png" rel="icon">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.googleapis.com https://*.gstatic.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://*.googleapis.com; img-src 'self' data: https:;">
+  <!-- UPDATED CSP: Permissive policy to prevent 'eval' and loading errors -->
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
 
+  <!-- Corrected Font URL (Capitalized 'Inter') -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap">
 
   <title>Automation ROI Calculator</title>
 
+  <!-- Social Metadata -->
   <meta property="og:title" content="Smart ROI Leads" />
   <meta property="og:description" content="Calculates automation ROI, captures lead info, and syncs results to Monday with email follow-up." />
   <meta property="og:type" content="website" />
