@@ -9,11 +9,10 @@ from pydantic import BaseModel, EmailStr, Field
 from app.libs.domain_model import RoiCalculationResult, RoiInputs
 from app.libs.roi_calculator import calculate_roi
 
-# Setup logging
+# Setup logging so you can see leads in Vercel logs
 logger = logging.getLogger("uvicorn")
 
 router = APIRouter(prefix="/leads", tags=["leads"])
-
 
 class LeadContact(BaseModel):
     name: str = Field(..., min_length=2)
@@ -22,36 +21,33 @@ class LeadContact(BaseModel):
     phone: str = Field(..., min_length=5)
     notes: Optional[str] = Field(default=None, max_length=1000)
 
-
 class LeadSubmissionRequest(BaseModel):
     contact: LeadContact
     inputs: RoiInputs
-
 
 class LeadSubmissionResponse(BaseModel):
     roi: RoiCalculationResult
     message: str
 
-
 @router.post("/submit", response_model=LeadSubmissionResponse)
 def submit_lead(payload: LeadSubmissionRequest) -> LeadSubmissionResponse:
-    # 1. Calculate ROI first
+    # 1. Calculate ROI
     roi_result = calculate_roi(payload.inputs)
 
-    # 2. Log the lead details (This serves as your "database" in Vercel logs for now)
+    # 2. Log the lead details (Your "Email Pivot" starts here)
+    # In a real pivot, you would call send_email(payload.contact) here.
+    # For now, we log it to prove it works.
     lead_info = (
-        f"NEW LEAD SUBMITTED:\n"
+        f"NEW LEAD RECEIVED:\n"
         f"Name: {payload.contact.name}\n"
         f"Email: {payload.contact.email}\n"
         f"Company: {payload.contact.company}\n"
-        f"Phone: {payload.contact.phone}\n"
-        f"Notes: {payload.contact.notes}\n"
-        f"Potential Savings: ${roi_result.metrics.net_annual_savings:,.2f}"
+        f"Savings: ${roi_result.metrics.net_annual_savings:,.0f}"
     )
+    print(lead_info) # Prints to Vercel Runtime Logs
     logger.info(lead_info)
-    print(lead_info) # Ensure it prints to stdout
 
     return LeadSubmissionResponse(
         roi=roi_result,
-        message="Lead received successfully. Check logs.",
+        message="Lead captured successfully",
     )
