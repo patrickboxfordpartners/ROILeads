@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from typing import Optional
+import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, EmailStr, Field
 
 from app.libs.domain_model import RoiCalculationResult, RoiInputs
-from app.libs.monday_client import LeadDetails, MondayClient, MondayError
 from app.libs.roi_calculator import calculate_roi
+
+# Setup logging
+logger = logging.getLogger("uvicorn")
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -27,31 +30,28 @@ class LeadSubmissionRequest(BaseModel):
 
 class LeadSubmissionResponse(BaseModel):
     roi: RoiCalculationResult
-    monday_item_id: str
-    monday_update_id: Optional[str]
+    message: str
 
 
 @router.post("/submit", response_model=LeadSubmissionResponse)
 def submit_lead(payload: LeadSubmissionRequest) -> LeadSubmissionResponse:
+    # 1. Calculate ROI first
     roi_result = calculate_roi(payload.inputs)
 
-    client = MondayClient()
-    lead_details = LeadDetails(
-        name=payload.contact.name,
-        email=payload.contact.email,
-        company=payload.contact.company,
-        phone=payload.contact.phone,
-        notes=payload.contact.notes,
+    # 2. Log the lead details (This serves as your "database" in Vercel logs for now)
+    lead_info = (
+        f"NEW LEAD SUBMITTED:\n"
+        f"Name: {payload.contact.name}\n"
+        f"Email: {payload.contact.email}\n"
+        f"Company: {payload.contact.company}\n"
+        f"Phone: {payload.contact.phone}\n"
+        f"Notes: {payload.contact.notes}\n"
+        f"Potential Savings: ${roi_result.metrics.net_annual_savings:,.2f}"
     )
-    
-    try:
-        monday_response = client.create_lead_with_roi(lead_details, roi_result)
-    except MondayError as e:
-        # Log the internal error here if logging is set up
-        raise HTTPException(status_code=502, detail=f"Failed to save lead to CRM: {str(e)}")
+    logger.info(lead_info)
+    print(lead_info) # Ensure it prints to stdout
 
     return LeadSubmissionResponse(
         roi=roi_result,
-        monday_item_id=monday_response["item_id"],
-        monday_update_id=monday_response.get("update_id"),
+        message="Lead received successfully. Check logs.",
     )
