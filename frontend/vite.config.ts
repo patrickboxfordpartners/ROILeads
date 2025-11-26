@@ -25,6 +25,7 @@ const devxHost = process.env.DEVX_HOST || `https://${process.env.APP_VARIANT ===
 const devxBasePath = process.env.DEVX_BASE_PATH || `/_projects/${projectId}/dbtn/${serviceType}`;
 
 // --- FIX 1: Force Base Path to Root ---
+// This ensures assets load correctly on Vercel
 const APP_BASE_PATH = process.env.APP_BASE_PATH || "/";
 // ---------------------------------------
 
@@ -73,7 +74,8 @@ const uiDevServerPlugin = (): Plugin => {
 };
 
 // --- FIX 2: Robust Auth Config Definitions ---
-// If disabled, we default to "{}" (empty object string) instead of "null" to prevent JSON parse errors.
+// We define these as empty object strings "{}" instead of "null".
+// This prevents the app from crashing when it tries to parse the config.
 const firebaseConfig = isFirebaseAuthExtensionEnabled
   ? JSON.stringify(getExtensionConfig(ExtensionName.FIREBASE_AUTH))
   : "{}";
@@ -96,7 +98,7 @@ const allDefines = {
   __APP_DEPLOY_USERNAME__: JSON.stringify(process.env.DATABUTTON_USERNAME),
   __APP_DEPLOY_APPNAME__: JSON.stringify(process.env.DATABUTTON_APPNAME),
   __APP_DEPLOY_CUSTOM_DOMAIN__: JSON.stringify(process.env.DATABUTTON_CUSTOM_DOMAIN),
-  // Always defined as stringified objects
+  // Always defined as stringified objects to prevent ReferenceError
   __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig),
   __STACK_AUTH_CONFIG__: JSON.stringify(stackAuthConfig),
 };
